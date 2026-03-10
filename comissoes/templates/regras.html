@@ -1,0 +1,137 @@
+{% extends "_layout.html" %}
+{% set title = "Regras de Comissão" %}
+{% set subtitle = "Defina percentuais por representante, rede, UF ou produto" %}
+{% set active = "regras" %}
+{% block content %}
+
+<div class="alert alert-info">
+  <span class="alert-icon">💡</span>
+  <div class="alert-body">
+    <div class="alert-title">Como funcionam as regras</div>
+    <div>As regras são aplicadas por prioridade (menor número = maior prioridade). Uma regra mais específica (ex: representante + rede + UF) sempre sobrepõe uma regra genérica. Deixe campos vazios para criar uma regra padrão do representante.</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2 id="regra-form-title">Nova Regra</h2>
+  </div>
+  <div class="card-body">
+    <form id="regra-form">
+      <input type="hidden" name="id" id="regra-id">
+      <div class="form-grid cols-3 mb-16">
+        <div class="form-group">
+          <label class="form-label">CODVEND <span class="req">*</span></label>
+          <input type="text" name="codvend" class="form-control" required placeholder="Ex: 000571">
+        </div>
+        <div class="form-group">
+          <label class="form-label">% Comissão <span class="req">*</span></label>
+          <input type="number" step="0.01" name="percentual" class="form-control" required placeholder="Ex: 1.5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prioridade
+            <span class="form-hint">Menor = maior prioridade</span>
+          </label>
+          <input type="number" name="prioridade" class="form-control" value="100">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cód. Cliente
+            <span class="form-hint">Vazio = qualquer cliente</span>
+          </label>  
+          <input type="text" name="codcliente" class="form-control" placeholder="Opcional">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rede</label>
+          <input type="text" name="rede" class="form-control" placeholder="Ex: GIGA">
+        </div>
+        <div class="form-group">
+          <label class="form-label">UF</label>
+          <input type="text" name="uf" class="form-control" placeholder="Ex: SP" maxlength="2">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cód. Produto</label>
+          <input type="text" name="codprod" class="form-control" placeholder="Opcional">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select name="ativo" class="form-control">
+            <option value="1">Ativa</option>
+            <option value="0">Inativa</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descrição</label>
+          <input type="text" name="descricao" class="form-control" placeholder="Ex: Comissão SP padrão">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="regra-submit-btn">✓ Salvar regra</button>
+        <button type="button" id="btn-regra-limpar" class="btn btn-ghost">Cancelar / Limpar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-header-left">
+      <h2>Regras Cadastradas</h2>
+      <div class="card-header-sub" id="regras-count-label">Carregando...</div>
+    </div>
+    <div class="flex">
+      <input type="search" id="regra-search" class="form-control" style="width:200px" placeholder="🔍 Buscar CODVEND, rede...">
+    </div>
+  </div>
+  <div class="card-body" id="regras-list">
+    <div class="empty-state">
+      <span class="empty-icon">⚙️</span>
+      <div class="empty-title">Carregando regras...</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2>Aglutinação de Comissões</h2>
+  </div>
+  <div class="card-body">
+    <div class="alert alert-info mb-16">
+      <span class="alert-icon">i</span>
+      <div class="alert-body">
+        <div class="alert-title">Consolidar CODVEND em um mestre</div>
+        <div>Use quando dois ou mais códigos devem gerar uma única comissão para aprovação e envio.</div>
+      </div>
+    </div>
+    <form id="agl-form">
+      <input type="hidden" name="id" id="agl-id">
+      <div class="form-grid cols-4 mb-16">
+        <div class="form-group">
+          <label class="form-label">CODVEND origem <span class="req">*</span></label>
+          <input type="text" name="codvend_origem" class="form-control" required placeholder="Ex: 000304">
+        </div>
+        <div class="form-group">
+          <label class="form-label">CODVEND destino <span class="req">*</span></label>
+          <input type="text" name="codvend_destino" class="form-control" required placeholder="Ex: 000981">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select name="ativo" class="form-control">
+            <option value="1">Ativa</option>
+            <option value="0">Inativa</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descrição</label>
+          <input type="text" name="descricao" class="form-control" placeholder="Ex: comissão consolidada time A">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="agl-submit-btn">Salvar aglutinação</button>
+        <button type="button" id="btn-agl-limpar" class="btn btn-ghost">Cancelar / Limpar</button>
+      </div>
+    </form>
+    <div class="mt-16" id="agl-list"></div>
+  </div>
+</div>
+
+{% endblock %}

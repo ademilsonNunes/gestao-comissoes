@@ -1,0 +1,78 @@
+{% extends "_layout.html" %}
+{% set title = "Apuração e Revisão" %}
+{% set subtitle = "Calcule, revise e aprove comissões por período" %}
+{% set active = "apuracao" %}
+{% block content %}
+
+<div class="card">
+  <div class="card-header">
+    <h2>Selecionar Período de Referência</h2>
+  </div>
+  <div class="card-body">
+    <div class="form-grid cols-4">
+      <div class="form-group">
+        <label class="form-label">Referência disponível (mês anterior)</label>
+        <select id="sel-periodo" class="form-control">
+          <option value="">Selecione...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mês de referência</label>
+        <input type="number" id="inp-mes" class="form-control" min="2" max="2" placeholder="2" readonly>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ano de referência</label>
+        <input type="number" id="inp-ano" class="form-control" min="2020" max="2100" placeholder="Ex: 2026">
+      </div>
+      <div class="form-group">
+        <label class="form-label">&nbsp;</label>
+        <div class="flex">
+          <button id="btn-calcular" class="btn btn-primary">Calcular</button>
+          <button id="btn-carregar" class="btn btn-ghost">Carregar</button>
+          <button id="btn-excluir-apuracao" class="btn btn-danger">Excluir apuração</button>
+        </div>
+      </div>
+    </div>
+    <div class="mt-12 text-sm text-muted" id="apuracao-id-label"></div>
+  </div>
+</div>
+
+<div id="kpi-apuracao" class="kpi-grid mb-16 hidden"></div>
+
+<div class="card" id="card-comissoes">
+  <div class="card-header">
+    <div class="card-header-left">
+      <h2>Comissões do Período (Comissão x Referência)</h2>
+      <div class="card-header-sub" id="comissoes-period-label">-</div>
+    </div>
+    <div class="flex" id="apuracao-bulk-actions">
+      <span class="text-sm text-muted" id="sel-count-label"></span>
+      <button id="btn-pdf-lote" class="btn btn-ghost btn-sm hidden">Exportar PDF consolidado</button>
+      <button id="btn-csv-lote" class="btn btn-ghost btn-sm hidden">Exportar CSV</button>
+    </div>
+  </div>
+  <div class="card-body" id="comissoes-list">
+    <div class="empty-state">
+      <span class="empty-icon">i</span>
+      <div class="empty-title">Selecione um período e clique em Calcular</div>
+      <div class="empty-text">As comissões serão geradas com base nas regras cadastradas</div>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="card-lancamentos" style="display:none">
+  <div class="card-header">
+    <div class="card-header-left">
+      <h2>Lançamentos - <span id="lanc-rep-nome">-</span></h2>
+      <div class="card-header-sub">Clique em "Lançamentos" em uma comissão para exibir o detalhe</div>
+    </div>
+    <button id="btn-fechar-lanc" class="btn btn-ghost btn-sm">Fechar</button>
+  </div>
+  <div class="card-body">
+    <div id="lanc-ajustes-fin" class="mb-16"></div>
+    <div id="lanc-kpis" class="kpi-grid mb-16"></div>
+    <div id="lanc-list"></div>
+  </div>
+</div>
+
+{% endblock %}

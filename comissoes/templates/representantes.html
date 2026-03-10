@@ -1,0 +1,71 @@
+{% extends "_layout.html" %}
+{% set title = "Representantes" %}
+{% set subtitle = "Cadastro e manutenção de representantes comerciais" %}
+{% set active = "representantes" %}
+{% block content %}
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-header-left">
+      <h2>Novo Representante</h2>
+      <div class="card-header-sub">Preencha os dados ou importe da base</div>
+    </div>
+    <button type="button" id="btn-imp-reps" class="btn btn-ghost btn-sm">
+      📋 Importar BASE_ENVIO
+    </button>
+  </div>
+  <div class="card-body">
+    <form id="rep-form">
+      <div class="form-grid mb-16">
+        <div class="form-group">
+          <label class="form-label">CODVEND <span class="req">*</span></label>
+          <input type="text" name="codvend" class="form-control" required placeholder="Ex: 000571">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nome <span class="req">*</span></label>
+          <input type="text" name="nome" class="form-control" required placeholder="Nome completo">
+        </div>
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input type="email" name="email" class="form-control" placeholder="email@empresa.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Corpo do e-mail
+            <span class="form-hint">Texto personalizado da mensagem</span>
+          </label>
+          <input type="text" name="corpo_email" class="form-control" placeholder="Ex: Segue em anexo seu relatório de comissão.">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">✓ Salvar representante</button>
+        <button type="button" id="btn-rep-clear" class="btn btn-ghost">Limpar</button>
+      </div>
+    </form>
+    <div id="rep-result-area" class="mt-12"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-header-left">
+      <h2>Representantes Cadastrados</h2>
+      <div class="card-header-sub" id="reps-count-label">Carregando...</div>
+    </div>
+    <div class="flex">
+      <input type="search" id="rep-search" class="form-control" style="width:220px" placeholder="🔍 Buscar...">
+      <select id="rep-filter-status" class="form-control" style="width:120px">
+        <option value="">Todos</option>
+        <option value="1">Ativos</option>
+        <option value="0">Inativos</option>
+      </select>
+    </div>
+  </div>
+  <div class="card-body" id="reps-list">
+    <div class="empty-state">
+      <span class="empty-icon">👥</span>
+      <div class="empty-title">Carregando representantes...</div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

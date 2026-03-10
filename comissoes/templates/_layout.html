@@ -1,0 +1,82 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or "Gestao de Comissoes" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css', v='20260310b') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <a class="brand" href="/">
+        <img class="brand-logo" src="{{ url_for('static', filename='Logo-Suprema1.png', v='20260309k') }}" alt="Suprema">
+        <span class="brand-text">
+          <span class="logo-title">Comissões</span>
+          <span class="logo-sub">Gestão Comercial</span>
+        </span>
+      </a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Operação</div>
+      <nav class="sidebar-nav">
+        <a class="nav-item {% if active=='dashboard' %}active{% endif %}" href="/">
+          <span class="nav-icon">📊</span><span>Dashboard</span>
+        </a>
+        <a class="nav-item {% if active=='importacao' %}active{% endif %}" href="/importacao">
+          <span class="nav-icon">📥</span><span>Importação</span>
+        </a>
+        <a class="nav-item {% if active=='representantes' %}active{% endif %}" href="/representantes">
+          <span class="nav-icon">👥</span><span>Representantes</span>
+        </a>
+        <a class="nav-item {% if active=='regras' %}active{% endif %}" href="/regras">
+          <span class="nav-icon">⚙️</span><span>Regras de Comissão</span>
+        </a>
+      </nav>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Apuração</div>
+      <nav class="sidebar-nav">
+        <a class="nav-item {% if active=='apuracao' %}active{% endif %}" href="/apuracao">
+          <span class="nav-icon">🧮</span><span>Calcular &amp; Revisar</span>
+        </a>
+        <a class="nav-item {% if active=='envio' %}active{% endif %}" href="/envio">
+          <span class="nav-icon">📧</span><span>Envio de E-mails</span>
+        </a>
+      </nav>
+    </div>
+
+    <div class="sidebar-footer">
+      <a href="/configuracoes">
+        <span class="nav-icon">🔧</span><span>Configurações SMTP</span>
+      </a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-brand">
+        <img class="topbar-logo" src="{{ url_for('static', filename='Logo-Suprema1.png', v='20260309k') }}" alt="Suprema">
+        <div>
+          <div class="topbar-title">{{ title or "Gestao de Comissoes" }}</div>
+          <div class="topbar-sub">{{ subtitle or "" }}</div>
+        </div>
+      </div>
+      <div class="topbar-actions" id="topbar-actions">
+        <form method="post" action="/logout">
+          <button type="submit" class="btn btn-ghost btn-sm">Sair</button>
+        </form>
+      </div>
+    </header>
+
+    <main class="page">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <div id="toast"></div>
+  <script src="{{ url_for('static', filename='app.js', v='20260309k') }}"></script>
+</body>
+</html>

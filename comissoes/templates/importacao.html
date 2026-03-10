@@ -1,0 +1,68 @@
+{% extends "_layout.html" %}
+{% set title = "Importação" %}
+{% set subtitle = "Carregar planilha de lançamentos e devoluções" %}
+{% set active = "importacao" %}
+{% block content %}
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-header-left">
+      <h2>Upload de Planilha</h2>
+      <div class="card-header-sub">Formatos aceitos: .xlsx e .xlsm</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" id="upload-file" accept=".xlsx,.xlsm">
+      <span class="upload-icon">📂</span>
+      <div class="upload-label">Clique ou arraste a planilha aqui</div>
+      <div class="upload-sub">Planilha com aba DBCOMISS e/ou DEVOLUÇÕES</div>
+      <span class="upload-filename hidden" id="upload-filename"></span>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="form-grid cols-3 mb-16" id="period-override">
+      <div class="form-group">
+        <label class="form-label">Mês (opcional)
+          <span class="form-hint">Deixe vazio para detectar automaticamente</span>
+        </label>
+        <input type="number" id="imp-mes" class="form-control" min="1" max="12" placeholder="Ex: 3">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ano (opcional)</label>
+        <input type="number" id="imp-ano" class="form-control" min="2020" max="2100" placeholder="Ex: 2026">
+      </div>
+      <div class="form-group">
+        <label class="form-label">&nbsp;</label>
+        <div class="flex">
+          <button type="button" id="btn-upload" class="btn btn-primary" disabled>
+            <span>📥</span> Importar arquivo
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="imp-progress" class="hidden">
+      <div class="progress-bar"><div class="progress-fill" id="imp-progress-fill" style="width:0%"></div></div>
+      <p class="text-sm text-muted mt-12" id="imp-progress-text">Processando...</p>
+    </div>
+
+    <div id="imp-result-area"></div>
+  </div>
+</div>
+
+<div class="card" id="pendencias-card">
+  <div class="card-header">
+    <div class="card-header-left">
+      <h2>Pendências de Cadastro</h2>
+      <div class="card-header-sub">CODVEND encontrados no arquivo sem representante cadastrado</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="btn-ver-pendencias">Verificar pendências</button>
+  </div>
+  <div class="card-body" id="pendencias-body">
+    <p class="text-muted text-sm">Clique em "Verificar pendências" para checar após a importação.</p>
+  </div>
+</div>
+
+{% endblock %}

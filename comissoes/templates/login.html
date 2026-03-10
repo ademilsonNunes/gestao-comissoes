@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Acesso | Gestão de Comissões</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css', v='20260310b') }}">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-hero">
+      <img src="{{ url_for('static', filename='Logo-Suprema1.png', v='20260309k') }}" alt="Suprema" class="auth-logo">
+      <h1>Gestão de Comissões</h1>
+      <p>Apuração, revisão e envio de relatórios com segurança.</p>
+    </section>
+    <section class="auth-card">
+      <h2>{% if setup_mode %}Primeiro acesso{% else %}Entrar no sistema{% endif %}</h2>
+      <p class="auth-sub">{% if setup_mode %}Defina a senha de acesso (mesma senha de reabertura).{% else %}Use sua senha de acesso para continuar.{% endif %}</p>
+      {% if error %}
+      <div class="alert alert-error mb-16">
+        <span class="alert-icon">x</span>
+        <div class="alert-body">{{ error }}</div>
+      </div>
+      {% endif %}
+      <form method="post" action="/login" class="auth-form">
+        <input type="hidden" name="next" value="{{ next_path or '/' }}">
+        <div class="form-group">
+          <label class="form-label">Senha</label>
+          <input type="password" name="senha" class="form-control" required autocomplete="current-password">
+        </div>
+        {% if setup_mode %}
+        <div class="form-group">
+          <label class="form-label">Confirmar senha</label>
+          <input type="password" name="senha_confirm" class="form-control" required autocomplete="new-password">
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary auth-submit">{% if setup_mode %}Definir e entrar{% else %}Entrar{% endif %}</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

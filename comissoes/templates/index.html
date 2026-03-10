@@ -1,0 +1,54 @@
+{% extends "_layout.html" %}
+{% set title = "Dashboard" %}
+{% set subtitle = "Visão geral do ciclo de comissões" %}
+{% set active = "dashboard" %}
+{% block content %}
+
+<div id="kpi-grid" class="kpi-grid mb-20"></div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-header-left">
+      <h2>Auditoria de Cadastro</h2>
+      <div class="card-header-sub">Pendências que precisam de atenção</div>
+    </div>
+    <button id="btn-refresh" class="btn btn-ghost btn-sm">↻ Atualizar</button>
+  </div>
+  <div class="card-body">
+    <div id="audit-alerts"></div>
+    <div id="audit-raw" class="log-output hidden"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2>Fluxo Operacional</h2>
+  </div>
+  <div class="card-body">
+    <div class="steps" id="workflow-steps">
+      <div class="step done" id="ws-import">
+        <div class="step-num">1</div>
+        <div class="step-label">Importação</div>
+      </div>
+      <div class="step" id="ws-reps">
+        <div class="step-num">2</div>
+        <div class="step-label">Representantes</div>
+      </div>
+      <div class="step" id="ws-regras">
+        <div class="step-num">3</div>
+        <div class="step-label">Regras</div>
+      </div>
+      <div class="step" id="ws-calc">
+        <div class="step-num">4</div>
+        <div class="step-label">Apuração</div>
+      </div>
+      <div class="step" id="ws-envio">
+        <div class="step-num">5</div>
+        <div class="step-label">Envio</div>
+      </div>
+    </div>
+    <p class="text-muted text-sm">Siga o fluxo em ordem. Cada etapa depende da anterior estar completa.</p>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,2 @@
+from comissoes.services.importacao import importar_representantes_base
+print(importar_representantes_base())

@@ -1,0 +1,69 @@
+{% extends "_layout.html" %}
+{% set title = "Configurações SMTP" %}
+{% set subtitle = "Configure o servidor de e-mail para envio dos relatórios" %}
+{% set active = "configuracoes" %}
+{% block content %}
+
+<div class="card">
+  <div class="card-header">
+    <h2>Servidor de E-mail (SMTP)</h2>
+  </div>
+  <div class="card-body">
+    <div class="alert alert-info mb-16">
+      <span class="alert-icon">💡</span>
+      <div class="alert-body">
+        <div class="alert-title">Gmail / Google Workspace</div>
+        <div>Host: <code>smtp.gmail.com</code> · Porta: <code>587</code> · Use uma <a href="https://myaccount.google.com/apppasswords" target="_blank">senha de app</a> se tiver 2FA ativado.</div>
+      </div>
+    </div>
+
+    <form id="cfg-form">
+      <div class="form-grid mb-16">
+        <div class="form-group">
+          <label class="form-label">Host SMTP <span class="req">*</span></label>
+          <input type="text" name="smtp_host" class="form-control" required placeholder="smtp.gmail.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Porta <span class="req">*</span></label>
+          <input type="number" name="smtp_port" class="form-control" value="587" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Usuário <span class="req">*</span></label>
+          <input type="text" name="smtp_user" class="form-control" required placeholder="seu@email.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Senha</label>
+          <input type="password" name="smtp_pass" class="form-control" placeholder="••••••••">
+        </div>
+        <div class="form-group form-col-full">
+          <label class="form-label">E-mail remetente <span class="req">*</span></label>
+          <input type="email" name="smtp_from" class="form-control" required placeholder="noreply@empresa.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Senha para reabrir comissão enviada</label>
+          <input type="password" name="reabrir_senha" class="form-control" placeholder="Defina uma senha de confirmação">
+          <div class="form-hint">Usada no login da aplicação e para voltar status de enviada para rascunho.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status da senha</label>
+          <input type="text" id="cfg-reabrir-status" class="form-control" value="Não configurada" readonly>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ações de segurança</label>
+          <label style="display:flex;gap:8px;align-items:center;margin-top:8px">
+            <input type="checkbox" name="limpar_reabrir_senha" value="1">
+            Limpar senha atual de reabertura
+          </label>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">💾 Salvar configurações</button>
+        <button type="button" id="btn-test-smtp" class="btn btn-ghost">🔌 Testar conexão</button>
+      </div>
+    </form>
+
+    <div id="cfg-result-area" class="mt-12"></div>
+  </div>
+</div>
+
+{% endblock %}

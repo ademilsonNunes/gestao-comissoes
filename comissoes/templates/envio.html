@@ -1,0 +1,57 @@
+{% extends "_layout.html" %}
+{% set title = "Envio de E-mails" %}
+{% set subtitle = "Envie relatórios de comissão para os representantes" %}
+{% set active = "envio" %}
+{% block content %}
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-header-left">
+      <h2>Envio em Lote</h2>
+      <div class="card-header-sub">Selecione os representantes aprovados para envio</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="form-grid mb-16">
+      <div class="form-group form-col-full">
+        <label class="form-label">Assunto do e-mail</label>
+        <input type="text" id="email-assunto" class="form-control" value="Relatório de Comissão">
+      </div>
+      <div class="form-group form-col-full">
+        <label class="form-label">IDs dos representantes (separados por vírgula)
+          <span class="form-hint">Ou selecione na tabela de apuração</span>
+        </label>
+        <input type="text" id="email-ids" class="form-control" placeholder="Ex: 1, 2, 5, 8">
+      </div>
+    </div>
+    <div class="form-actions mb-16">
+      <button type="button" id="btn-enviar-lote" class="btn btn-primary">📧 Enviar em lote</button>
+      <button type="button" id="btn-limpar-sel" class="btn btn-ghost">Limpar seleção</button>
+    </div>
+
+    <div id="envio-progress-area" class="hidden">
+      <div class="progress-bar"><div class="progress-fill" id="envio-progress-fill" style="width:0%"></div></div>
+      <p class="text-sm text-muted mt-12" id="envio-progress-text">Enviando...</p>
+    </div>
+
+    <div id="envio-result-area"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-header-left">
+      <h2>Histórico de Envios</h2>
+      <div class="card-header-sub" id="hist-count-label">Carregando...</div>
+    </div>
+    <button id="btn-refresh-hist" class="btn btn-ghost btn-sm">↻ Atualizar</button>
+  </div>
+  <div class="card-body" id="email-hist">
+    <div class="empty-state">
+      <span class="empty-icon">📧</span>
+      <div class="empty-title">Nenhum envio registrado</div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
