@@ -6,7 +6,13 @@ from datetime import timedelta
 from flask import Flask, jsonify, request, send_file, render_template, session, redirect, url_for
 from .database.database import init_schema
 from .database import models
-from .services.importacao import importar_representantes_base, importar_vendas, importar_vendas_arquivo
+from .services.importacao import (
+    importar_representantes_base,
+    importar_vendas,
+    importar_vendas_arquivo,
+    importar_vendas_query_banco,
+    testar_conexao_sql,
+)
 from .services.calculo import calcular, consolidado
 from .services.relatorio import gerar_pdf_representante, gerar_pdf_consolidado
 from .services.email_service import enviar_email, enviar_email_cfg
@@ -24,6 +30,11 @@ LOGIN_MAX_ATTEMPTS = int(os.getenv("LOGIN_MAX_ATTEMPTS", "5"))
 LOGIN_WINDOW_MINUTES = int(os.getenv("LOGIN_WINDOW_MINUTES", "15"))
 LOGIN_LOCKOUT_MINUTES = int(os.getenv("LOGIN_LOCKOUT_MINUTES", "15"))
 _LOGIN_ATTEMPTS: dict[str, dict[str, list[float] | float]] = {}
+
+
+def _senha_mascarada(v: str) -> bool:
+    s = str(v or "").strip()
+    return bool(s) and (set(s) <= set("*•●")) and len(s) >= 4
 
 
 @app.after_request
@@ -393,6 +404,33 @@ def upload_importacao():
 @app.post("/api/importacao/padrao")
 def importar_arquivo_padrao():
     return jsonify(importar_vendas())
+
+
+@app.post("/api/importacao/query")
+def importar_via_query():
+    payload = request.get_json(silent=True) or {}
+    try:
+        mes = int(payload.get("mes", 0) or 0)
+        ano = int(payload.get("ano", 0) or 0)
+    except Exception:
+        return jsonify({"error": "mes_ano_invalidos"}), 400
+    conn_str = str(payload.get("conn_str", "") or "").strip() or None
+    incluir_devolucoes_raw = payload.get("incluir_devolucoes", None)
+    incluir_devolucoes = None if incluir_devolucoes_raw is None else bool(int(incluir_devolucoes_raw))
+    try:
+        res = importar_vendas_query_banco(
+            mes=mes,
+            ano=ano,
+            conn_str=conn_str,
+            incluir_devolucoes=incluir_devolucoes,
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        return jsonify({"error": f"falha_importacao_query: {e}"}), 500
+    return jsonify(res)
 
 
 @app.get("/api/importacao/<int:imp_id>/status")
@@ -779,7 +817,13 @@ def historico_email():
 @app.get("/api/configuracoes")
 def obter_configuracoes():
     init_schema()
-    return jsonify(models.obter_configuracoes())
+    cfg = models.obter_configuracoes()
+    cfg_pub = dict(cfg)
+    cfg_pub["has_smtp_pass"] = bool(str(cfg.get("smtp_pass", "") or "").strip())
+    cfg_pub["has_sql_pass"] = bool(str(cfg.get("sql_pass", "") or "").strip())
+    cfg_pub["smtp_pass"] = ""
+    cfg_pub["sql_pass"] = ""
+    return jsonify(cfg_pub)
 
 
 @app.put("/api/configuracoes")
@@ -794,20 +838,65 @@ def salvar_configuracoes():
 def testar_smtp():
     payload = request.get_json(silent=True) or {}
     cfg = models.obter_configuracoes()
-    host = payload.get("smtp_host", cfg.get("smtp_host",""))
-    port = int(payload.get("smtp_port", cfg.get("smtp_port",587)))
-    user = payload.get("smtp_user", cfg.get("smtp_user",""))
-    passwd = payload.get("smtp_pass", cfg.get("smtp_pass",""))
-    from_addr = payload.get("smtp_from", cfg.get("smtp_from",""))
+    host = payload.get("smtp_host", cfg.get("smtp_host", ""))
+    port = int(payload.get("smtp_port", cfg.get("smtp_port", 587)))
+    user = payload.get("smtp_user", cfg.get("smtp_user", ""))
+    passwd = str(payload.get("smtp_pass", "") or "").strip()
+    if (not passwd) or _senha_mascarada(passwd):
+        passwd = cfg.get("smtp_pass", "")
+    from_addr = payload.get("smtp_from", cfg.get("smtp_from", ""))
     from comissoes.services.email_service import smtplib
-    try:
-        with smtplib.SMTP(host, port, timeout=5) as s:
-            s.starttls()
+    def _smtp_try(auth_pass: str) -> None:
+        with smtplib.SMTP(host, port, timeout=20) as s:
+            s.ehlo()
+            if s.has_extn("starttls"):
+                s.starttls()
+                s.ehlo()
             if user:
-                s.login(user, passwd)
+                s.login(user, auth_pass)
+
+    try:
+        _smtp_try(passwd)
         return jsonify({"status": "ok"})
     except Exception as e:
+        # Fallback: se senha enviada falhar, tenta a senha salva (evita quebra por autofill incorreto no front).
+        saved_pass = str(cfg.get("smtp_pass", "") or "")
+        if saved_pass and saved_pass != passwd:
+            try:
+                _smtp_try(saved_pass)
+                return jsonify({"status": "ok", "fallback": "smtp_pass_salva"})
+            except Exception:
+                pass
         return jsonify({"status": "erro", "motivo": str(e)})
+
+
+@app.post("/api/configuracoes/testar-sql")
+def testar_sql():
+    payload = request.get_json(silent=True) or {}
+    conn_str = str(payload.get("conn_str", "") or "").strip() or None
+    try:
+        cfg = models.obter_configuracoes()
+        if payload:
+            for k, v in payload.items():
+                if k in {"sql_pass", "smtp_pass"} and (
+                    (not str(v or "").strip()) or _senha_mascarada(str(v or ""))
+                ):
+                    continue
+                cfg[k] = v
+        res = testar_conexao_sql(conn_str=conn_str, cfg=cfg)
+        return jsonify(res)
+    except ValueError as e:
+        return jsonify({"status": "erro", "motivo": str(e)}), 400
+    except RuntimeError as e:
+        return jsonify({"status": "erro", "motivo": str(e)}), 500
+    except Exception as e:
+        return jsonify({"status": "erro", "motivo": str(e)}), 500
+
+
+@app.post("/api/configuracoes/testar_sql")
+def testar_sql_alias():
+    # Compatibilidade com versões antigas do front-end.
+    return testar_sql()
 
 
 if __name__ == "__main__":

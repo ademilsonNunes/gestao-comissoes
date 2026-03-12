@@ -326,8 +326,9 @@ function initImportacao() {
       const r = await fetch('/api/importacao/upload', { method: 'POST', body: fd });
       const body = await r.json();
       if (!r.ok) throw new Error(body.error || 'Falha na importação');
+      const total = Number(body.dbc || 0) + Number(body.devolucoes || 0);
       $('imp-result-area').innerHTML = alertHtml('success', 'Importação concluída!',
-        `Importados: <strong>${body.importados ?? 0}</strong> lançamentos · Período: ${body.mes ?? '?'}/${body.ano ?? '?'}`);
+        `Importados: <strong>${total}</strong> lançamentos (DB ${body.dbc || 0} + DEV ${body.devolucoes || 0}) · Período: ${body.mes ?? '?'}/${body.ano ?? '?'}`);
       toast('Importação concluída!', 'success');
     } catch (e) {
       $('imp-result-area').innerHTML = alertHtml('error', 'Erro na importação', e.message);
@@ -338,6 +339,46 @@ function initImportacao() {
       $('imp-progress').classList.add('hidden');
     }
   });
+
+  if (exists('btn-import-query')) {
+    $('btn-import-query').addEventListener('click', async () => {
+      const bq = $('btn-import-query');
+      const mes = Number($('qry-mes')?.value || 0);
+      const ano = Number($('qry-ano')?.value || 0);
+      const connStr = $('qry-conn')?.value || '';
+      if (!mes || !ano) {
+        toast('Informe mês e ano para importar via query.', 'error');
+        return;
+      }
+      bq.disabled = true;
+      bq.innerHTML = '<span class="spinner"></span> Executando query...';
+      try {
+        const body = await api('/api/importacao/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mes, ano, conn_str: connStr }),
+        });
+        const total = Number(body.dbc || 0) + Number(body.devolucoes || 0);
+        if (exists('imp-query-result-area')) {
+          $('imp-query-result-area').innerHTML = alertHtml(
+            'success',
+            'Importação via banco concluída!',
+            `Importados: <strong>${total}</strong> lançamentos (DB ${body.dbc || 0} + DEV ${body.devolucoes || 0}) · Período: ${body.mes}/${body.ano}<br>
+             Janela aplicada: Emissão ${body.dtini} até Baixa ${body.dtbaixa_fim}.`
+          );
+        }
+        toast('Importação via query concluída!', 'success');
+      } catch (e) {
+        if (exists('imp-query-result-area')) {
+          $('imp-query-result-area').innerHTML = alertHtml('error', 'Erro na importação via query', e.message);
+        }
+        toast(e.message, 'error');
+      } finally {
+        bq.disabled = false;
+        bq.innerHTML = '<span>🧮</span> Importar via query';
+      }
+    });
+  }
 
   if (exists('btn-ver-pendencias')) {
     $('btn-ver-pendencias').addEventListener('click', async () => {
@@ -1055,12 +1096,13 @@ function renderLancamentosApuracao() {
     const percBase = (prod !== null && Math.abs(prod) > 1e-12) ? prod : (vend || 0);
     return Number(vlrliq || 0) * (percBase / 100.0);
   };
-  const totalLiq = STATE.lancamentos.reduce((s, l) => s + Number(l.vlrliq || 0), 0);
-  const totalComBase = STATE.lancamentos.reduce((s, l) => {
-    const vend = l.comis_vend != null ? Number(l.comis_vend) : 0;
-    const prod = l.comis_prod != null ? Number(l.comis_prod) : 0;
-    return s + calcComissaoLinha(Number(l.vlrliq || 0), vend, prod);
-  }, 0);
+  const isDs = l => String(l.tipo || '').toUpperCase() === 'DS';
+  const totalLiqDB = STATE.lancamentos.reduce((s, l) => s + (isDs(l) ? 0 : Number(l.vlrliq || 0)), 0);
+  const totalLiqDS = STATE.lancamentos.reduce((s, l) => s + (isDs(l) ? Number(l.vlrliq || 0) : 0), 0);
+  const totalLiq = totalLiqDB + totalLiqDS;
+  const totalComBaseDB = STATE.lancamentos.reduce((s, l) => s + (isDs(l) ? 0 : Number(l.tcomisprod || 0)), 0);
+  const totalComBaseDS = STATE.lancamentos.reduce((s, l) => s + (isDs(l) ? Number(l.tcomisprod || 0) : 0), 0);
+  const totalComBase = totalComBaseDB + totalComBaseDS;
   const descontoAtual = Number(comissaoSel.ajuste_desconto || 0);
   const premioAtual = Number(comissaoSel.ajuste_premio || 0);
   const totalFinal = totalComBase - descontoAtual + premioAtual;
@@ -1069,7 +1111,11 @@ function renderLancamentosApuracao() {
   if ($('lanc-kpis')) {
     $('lanc-kpis').innerHTML = `
       <div class="kpi-card"><div class="kpi-label">Lancamentos</div><div class="kpi-value" id="kpi-lanc-count">${STATE.lancamentos.length}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Vlr. Liquido</div><div class="kpi-value" id="kpi-lanc-liq" style="font-size:16px">${money(totalLiq)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Faturamento Base (DB)</div><div class="kpi-value" style="font-size:16px">${money(totalLiqDB)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Devolucoes (DS)</div><div class="kpi-value" style="font-size:16px">${money(totalLiqDS)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Vlr. Liquido (DB + DS)</div><div class="kpi-value" id="kpi-lanc-liq" style="font-size:16px">${money(totalLiq)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Comissao Base (DB)</div><div class="kpi-value" style="font-size:16px">${money(totalComBaseDB)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Comissao Devolucao (DS)</div><div class="kpi-value" style="font-size:16px">${money(totalComBaseDS)}</div></div>
       <div class="kpi-card kpi-green"><div class="kpi-label">Comissao Final</div><div class="kpi-value" id="kpi-lanc-final" style="font-size:16px">${money(totalFinal)}</div></div>
       <div class="kpi-card kpi-blue"><div class="kpi-label">% Comissao Base / Vlr. Liquido</div><div class="kpi-value" id="kpi-lanc-perc" style="font-size:16px">${pct2(percComissao)}</div></div>
     `;
@@ -1154,9 +1200,9 @@ function renderLancamentosApuracao() {
   const rows = lancVisiveis.map(l => {
     const vend = l.comis_vend != null ? Number(l.comis_vend) : 0;
     const prod = l.comis_prod != null ? Number(l.comis_prod) : 0;
-    const comCalc = calcComissaoLinha(Number(l.vlrliq || 0), vend, prod);
+    const comCalc = Number(l.tcomisprod || 0);
     return `
-    <tr data-lid="${l.id}" data-vlrliq="${Number(l.vlrliq || 0)}" data-orig-vend="${vend}" data-orig-prod="${prod}">
+    <tr data-lid="${l.id}" data-vlrliq="${Number(l.vlrliq || 0)}" data-orig-vend="${vend}" data-orig-prod="${prod}" data-comissao="${comCalc}">
       <td class="mono">${l.codvend || ''}</td>
       <td class="mono">${l.nf || ''}</td>
       <td class="mono">${l.pedido || ''}</td>
@@ -1197,7 +1243,7 @@ function renderLancamentosApuracao() {
           </div>
         </div>
       </div>
-      <div class="text-sm text-muted mt-12">Status da comissão: <strong>${statusLabel}</strong> · Exibindo <strong>${lancVisiveis.length}</strong> de <strong>${STATE.lancamentos.length}</strong> lançamento(s).</div>
+      <div class="text-sm text-muted mt-12">Status da comissão: <strong>${statusLabel}</strong> · Exibindo <strong>${lancVisiveis.length}</strong> de <strong>${STATE.lancamentos.length}</strong> lançamento(s) · DB: <strong>${STATE.lancamentos.filter(x => String(x.tipo || '').toUpperCase() !== 'DS').length}</strong> · DS: <strong>${STATE.lancamentos.filter(x => String(x.tipo || '').toUpperCase() === 'DS').length}</strong>.</div>
     </div>
   </div>
   ${avisoBloqueio}
@@ -1233,6 +1279,7 @@ function renderLancamentosApuracao() {
     const vend = toFloatOrNull(row.querySelector('.f-vend')?.value);
     const prod = toFloatOrNull(row.querySelector('.f-prod')?.value);
     const comissao = calcComissaoLinha(vlrliq, vend, prod);
+    row.dataset.comissao = String(comissao);
     row.querySelector('.f-comissao').textContent = money(comissao);
   };
 
@@ -1253,10 +1300,7 @@ function renderLancamentosApuracao() {
   const recalcResumo = () => {
     let totalBase = 0;
     container.querySelectorAll('tr[data-lid]').forEach(row => {
-      const vlrliq = Number(row.dataset.vlrliq || 0);
-      const vend = toFloatOrNull(row.querySelector('.f-vend')?.value);
-      const prod = toFloatOrNull(row.querySelector('.f-prod')?.value);
-      totalBase += calcComissaoLinha(vlrliq, vend, prod);
+      totalBase += Number(row.dataset.comissao || 0);
     });
     const desconto = toFloatOrNull($('ajf-desconto')?.value) || 0;
     const premio = toFloatOrNull($('ajf-premio')?.value) || 0;
@@ -1432,8 +1476,19 @@ async function loadCfg() {
     f.smtp_host.value = cfg.smtp_host || '';
     f.smtp_port.value = cfg.smtp_port || 587;
     f.smtp_user.value = cfg.smtp_user || '';
-    f.smtp_pass.value = cfg.smtp_pass || '';
+    f.smtp_pass.value = '';
+    if (f.smtp_pass) f.smtp_pass.placeholder = (cfg.has_smtp_pass ? '•••••••• (salva)' : '********');
     f.smtp_from.value = cfg.smtp_from || '';
+    if (f.sql_server) f.sql_server.value = cfg.sql_server || '';
+    if (f.sql_port) f.sql_port.value = cfg.sql_port || 1433;
+    if (f.sql_database) f.sql_database.value = cfg.sql_database || '';
+    if (f.sql_user) f.sql_user.value = cfg.sql_user || '';
+    if (f.sql_pass) {
+      f.sql_pass.value = '';
+      f.sql_pass.placeholder = (cfg.has_sql_pass ? '•••••••• (salva)' : '********');
+    }
+    if (f.sql_encrypt) f.sql_encrypt.checked = Number(cfg.sql_encrypt || 0) === 1;
+    if (f.sql_trust_cert) f.sql_trust_cert.checked = Number(cfg.sql_trust_cert ?? 1) === 1;
     if (exists('cfg-reabrir-status')) $('cfg-reabrir-status').value = cfg.has_reabrir_senha ? 'Configurada' : 'Não configurada';
     if (f.reabrir_senha) f.reabrir_senha.value = '';
     if (f.limpar_reabrir_senha) f.limpar_reabrir_senha.checked = false;
@@ -1442,6 +1497,29 @@ async function loadCfg() {
 
 function initConfiguracoes() {
   if (!exists('cfg-form')) return;
+  const normalizePass = (v) => {
+    const s = String(v || '').trim();
+    if (!s) return '';
+    if (/^[*•●]{4,}$/.test(s)) return '';
+    return s;
+  };
+  const formToCfgPayload = (f) => ({
+    smtp_host: f.smtp_host?.value || '',
+    smtp_port: Number(f.smtp_port?.value || 587),
+    smtp_user: f.smtp_user?.value || '',
+    smtp_pass: normalizePass(f.smtp_pass?.value),
+    smtp_from: f.smtp_from?.value || '',
+    sql_server: f.sql_server?.value || '',
+    sql_port: Number(f.sql_port?.value || 1433),
+    sql_database: f.sql_database?.value || '',
+    sql_user: f.sql_user?.value || '',
+    sql_pass: normalizePass(f.sql_pass?.value),
+    sql_encrypt: f.sql_encrypt?.checked ? 1 : 0,
+    sql_trust_cert: f.sql_trust_cert?.checked ? 1 : 0,
+    reabrir_senha: f.reabrir_senha?.value || '',
+    limpar_reabrir_senha: f.limpar_reabrir_senha?.checked ? 1 : 0,
+  });
+
   $('cfg-form').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = e.target.querySelector('[type=submit]');
@@ -1449,11 +1527,11 @@ function initConfiguracoes() {
     try {
       await api('/api/configuracoes', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData(e.target)),
+        body: JSON.stringify(formToCfgPayload(e.target)),
       });
       await loadCfg();
-      if (exists('cfg-result-area')) $('cfg-result-area').innerHTML = alertHtml('success', 'Salvo!', 'Configurações SMTP salvas com sucesso.');
-      toast('SMTP salvo!', 'success');
+      if (exists('cfg-result-area')) $('cfg-result-area').innerHTML = alertHtml('success', 'Salvo!', 'Configurações atualizadas com sucesso.');
+      toast('Configurações salvas!', 'success');
     } catch (err) { toast(err.message, 'error'); }
     finally { btn.disabled = false; btn.innerHTML = ' Salvar configurações'; }
   });
@@ -1463,16 +1541,45 @@ function initConfiguracoes() {
       const btn = $('btn-test-smtp');
       btn.disabled = true; btn.innerHTML = '<span class="spinner spinner-dark"></span> Testando...';
       try {
+        const payload = formToCfgPayload($('cfg-form'));
         const r = await api('/api/configuracoes/testar-smtp', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData($('cfg-form'))),
+          body: JSON.stringify(payload),
         });
         const ok = r.status === 'ok';
         if (exists('cfg-result-area'))
-          $('cfg-result-area').innerHTML = alertHtml(ok ? 'success' : 'error', ok ? 'Conexão OK!' : 'Falha na conexão', ok ? 'SMTP configurado corretamente.' : (r.motivo || 'Verifique as configurações.'));
+          $('cfg-result-area').innerHTML = alertHtml(
+            ok ? 'success' : 'error',
+            ok ? 'Conexão OK!' : 'Falha na conexão',
+            ok
+              ? (r.fallback ? 'SMTP validado com a senha salva no banco (senha mascarada/autofill ignorada).' : 'SMTP configurado corretamente.')
+              : (r.motivo || 'Verifique as configurações.')
+          );
         toast(ok ? 'Conexão OK!' : 'Falha no teste.', ok ? 'success' : 'error');
       } catch (e) { toast(e.message, 'error'); }
       finally { btn.disabled = false; btn.innerHTML = ' Testar conexão'; }
+    });
+  }
+
+  if (exists('btn-test-sql')) {
+    $('btn-test-sql').addEventListener('click', async () => {
+      const btn = $('btn-test-sql');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner spinner-dark"></span> Testando SQL...';
+      try {
+        const r = await api('/api/configuracoes/testar-sql', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formToCfgPayload($('cfg-form'))),
+        });
+        const ok = r.status === 'ok';
+        if (exists('cfg-result-area')) {
+          const detalhe = ok
+            ? `Servidor: <code>${esc(r.servidor || '')}</code> · Banco: <code>${esc(r.banco || '')}</code>`
+            : (r.motivo || 'Verifique os dados de conexão SQL.');
+          $('cfg-result-area').innerHTML = alertHtml(ok ? 'success' : 'error', ok ? 'Conexão SQL OK!' : 'Falha na conexão SQL', detalhe);
+        }
+        toast(ok ? 'SQL conectado.' : 'Falha no teste SQL.', ok ? 'success' : 'error');
+      } catch (e) { toast(e.message, 'error'); }
+      finally { btn.disabled = false; btn.innerHTML = '🧪 Testar SQL'; }
     });
   }
 }

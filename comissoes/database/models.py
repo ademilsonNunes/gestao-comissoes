@@ -2,6 +2,14 @@ from typing import List, Dict, Any, Optional, Tuple
 from .database import get_conn
 
 
+def _senha_mascarada(v: Any) -> bool:
+    s = str(v or "").strip()
+    if not s:
+        return False
+    # Valores vindos de UI/extensões com máscara literal não devem sobrescrever a senha salva.
+    return set(s) <= set("*•") and len(s) >= 4
+
+
 def upsert_representante(codvend: str, nome: str, email: str, corpo_email: str) -> None:
     conn = get_conn()
     cur = conn.cursor()
@@ -234,14 +242,14 @@ def _calc_fallback_comissao(l: Dict[str, Any]) -> float:
 
     # Algumas bases trazem COMIS_VEND=0 em todos os itens; nesses casos,
     # usar COMIS_PROD/TCOMISPROD para não zerar comissão indevidamente.
-    if tcomisprod is not None and abs(float(tcomisprod or 0)) > 1e-12:
-        return float(tcomisprod or 0)
     if comis_prod is not None and abs(float(comis_prod or 0)) > 1e-12:
         return vlrliq * (float(comis_prod) / 100.0)
     if comis_vend is not None and abs(float(comis_vend or 0)) > 1e-12:
         return vlrliq * (float(comis_vend) / 100.0)
     if comis_cli is not None and abs(float(comis_cli or 0)) > 1e-12:
         return vlrliq * (float(comis_cli) / 100.0)
+    if tcomisprod is not None and abs(float(tcomisprod or 0)) > 1e-12:
+        return float(tcomisprod or 0)
     return 0.0
 
 
@@ -718,17 +726,17 @@ def obter_lancamentos_por_comissao(cid: int) -> List[Dict[str, Any]]:
     placeholders = ",".join(["?"] * len(codvends_grupo))
     if apuracao_id:
         cur.execute(
-            f"SELECT id, codvend, emp, vend, nf, pedido, item, codprod, produto, dtemissao, vencto, dtbaixa, rede, uf, cliente, vlrliq, comis_vend, comis_prod, tcomisprod FROM lancamentos WHERE codvend IN ({placeholders}) AND mes=? AND ano=? AND apuracao_id=?",
+            f"SELECT id, codvend, emp, vend, nf, pedido, item, codprod, produto, dtemissao, vencto, dtbaixa, codcliente, rede, uf, cliente, vlrliq, comis_vend, comis_prod, tcomisprod, tipo, tp FROM lancamentos WHERE codvend IN ({placeholders}) AND mes=? AND ano=? AND apuracao_id=?",
             (*codvends_grupo, com["mes"], com["ano"], apuracao_id),
         )
     else:
         cur.execute(
-            f"SELECT id, codvend, emp, vend, nf, pedido, item, codprod, produto, dtemissao, vencto, dtbaixa, rede, uf, cliente, vlrliq, comis_vend, comis_prod, tcomisprod FROM lancamentos WHERE codvend IN ({placeholders}) AND mes=? AND ano=?",
+            f"SELECT id, codvend, emp, vend, nf, pedido, item, codprod, produto, dtemissao, vencto, dtbaixa, codcliente, rede, uf, cliente, vlrliq, comis_vend, comis_prod, tcomisprod, tipo, tp FROM lancamentos WHERE codvend IN ({placeholders}) AND mes=? AND ano=?",
             (*codvends_grupo, com["mes"], com["ano"]),
         )
     rows = cur.fetchall()
     conn.close()
-    return [
+    itens = [
         {
             "id": r[0],
             "codvend": r[1] or "",
@@ -742,16 +750,47 @@ def obter_lancamentos_por_comissao(cid: int) -> List[Dict[str, Any]]:
             "dtemissao": r[9] or "",
             "vencto": r[10] or "",
             "dtbaixa": r[11] or "",
-            "rede": r[12] or "",
-            "uf": r[13] or "",
-            "cliente": r[14] or "",
-            "vlrliq": float(r[15] or 0),
-            "comis_vend": (float(r[16]) if r[16] is not None else None),
-            "comis_prod": (float(r[17]) if r[17] is not None else None),
-            "tcomisprod": (float(r[18]) if r[18] is not None else None),
+            "codcliente": r[12] or "",
+            "rede": r[13] or "",
+            "uf": r[14] or "",
+            "cliente": r[15] or "",
+            "vlrliq": float(r[16] or 0),
+            "comis_vend": (float(r[17]) if r[17] is not None else None),
+            "comis_prod": (float(r[18]) if r[18] is not None else None),
+            "tcomisprod": (float(r[19]) if r[19] is not None else None),
+            "tipo": str(r[20] or ""),
+            "tp": str(r[21] or ""),
         }
         for r in rows
     ]
+
+    # Mantem o detalhamento com a mesma regra usada na apuracao consolidada.
+    regras = listar_regras()
+    regras_por_codvend: Dict[str, List[Dict[str, Any]]] = {}
+    for rg in regras:
+        regras_por_codvend.setdefault(str(rg.get("codvend", "")), []).append(rg)
+
+    for l in itens:
+        candidatas = regras_por_codvend.get(str(l.get("codvend", "")), [])
+        reg_match = None
+        if candidatas:
+            validas = [rg for rg in candidatas if _match_regra(l, rg)]
+            if validas:
+                reg_match = sorted(validas, key=_peso_regra)[0]
+
+        if reg_match:
+            perc = float(reg_match.get("percentual", 0) or 0)
+            l["percentual_aplicado"] = perc
+            l["tcomisprod"] = float(l.get("vlrliq", 0) or 0) * (perc / 100.0)
+        else:
+            l["percentual_aplicado"] = (
+                float(l.get("comis_prod", 0) or 0)
+                if abs(float(l.get("comis_prod", 0) or 0)) > 1e-12
+                else float(l.get("comis_vend", 0) or 0)
+            )
+            l["tcomisprod"] = _calc_fallback_comissao(l)
+
+    return itens
 
 
 def criar_ou_substituir_apuracao_periodo(
@@ -998,13 +1037,69 @@ def obter_configuracoes() -> Dict[str, Any]:
     if "reabrir_senha_hash" not in colunas:
         cur.execute("ALTER TABLE configuracoes ADD COLUMN reabrir_senha_hash TEXT")
         conn.commit()
-    cur.execute("SELECT id, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, COALESCE(reabrir_senha_hash,'') FROM configuracoes LIMIT 1")
+    if "sql_server" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_server TEXT")
+    if "sql_port" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_port INTEGER")
+    if "sql_database" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_database TEXT")
+    if "sql_user" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_user TEXT")
+    if "sql_pass" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_pass TEXT")
+    if "sql_encrypt" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_encrypt INTEGER DEFAULT 0")
+    if "sql_trust_cert" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_trust_cert INTEGER DEFAULT 1")
+    if "sql_incluir_devolucoes" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_incluir_devolucoes INTEGER DEFAULT 0")
+    conn.commit()
+    cur.execute(
+        """
+        SELECT id, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, COALESCE(reabrir_senha_hash,''),
+               COALESCE(sql_server,''), COALESCE(sql_port,1433), COALESCE(sql_database,''), COALESCE(sql_user,''),
+             COALESCE(sql_pass,''), COALESCE(sql_encrypt,0), COALESCE(sql_trust_cert,1), COALESCE(sql_incluir_devolucoes,0)
+        FROM configuracoes
+        LIMIT 1
+        """
+    )
     r = cur.fetchone()
     if not r:
         conn.close()
-        return {"smtp_host": "", "smtp_port": 587, "smtp_user": "", "smtp_pass": "", "smtp_from": "", "has_reabrir_senha": False}
+        return {
+            "smtp_host": "",
+            "smtp_port": 587,
+            "smtp_user": "",
+            "smtp_pass": "",
+            "smtp_from": "",
+            "has_reabrir_senha": False,
+            "sql_server": "",
+            "sql_port": 1433,
+            "sql_database": "",
+            "sql_user": "",
+            "sql_pass": "",
+            "sql_encrypt": 0,
+            "sql_trust_cert": 1,
+            "sql_incluir_devolucoes": 0,
+        }
     conn.close()
-    return {"id": r[0], "smtp_host": r[1], "smtp_port": r[2], "smtp_user": r[3], "smtp_pass": r[4], "smtp_from": r[5], "has_reabrir_senha": bool(str(r[6] or "").strip())}
+    return {
+        "id": r[0],
+        "smtp_host": r[1],
+        "smtp_port": r[2],
+        "smtp_user": r[3],
+        "smtp_pass": r[4],
+        "smtp_from": r[5],
+        "has_reabrir_senha": bool(str(r[6] or "").strip()),
+        "sql_server": r[7],
+        "sql_port": int(r[8] or 1433),
+        "sql_database": r[9],
+        "sql_user": r[10],
+        "sql_pass": r[11],
+        "sql_encrypt": int(r[12] or 0),
+        "sql_trust_cert": int(r[13] or 1),
+        "sql_incluir_devolucoes": int(r[14] or 0),
+    }
 
 
 def resumo_auditoria() -> Dict[str, Any]:
@@ -1061,21 +1156,96 @@ def salvar_configuracoes(cfg: Dict[str, Any]) -> None:
     if "reabrir_senha_hash" not in colunas:
         cur.execute("ALTER TABLE configuracoes ADD COLUMN reabrir_senha_hash TEXT")
         conn.commit()
+    if "sql_server" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_server TEXT")
+    if "sql_port" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_port INTEGER")
+    if "sql_database" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_database TEXT")
+    if "sql_user" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_user TEXT")
+    if "sql_pass" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_pass TEXT")
+    if "sql_encrypt" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_encrypt INTEGER DEFAULT 0")
+    if "sql_trust_cert" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_trust_cert INTEGER DEFAULT 1")
+    if "sql_incluir_devolucoes" not in colunas:
+        cur.execute("ALTER TABLE configuracoes ADD COLUMN sql_incluir_devolucoes INTEGER DEFAULT 0")
+    conn.commit()
+
     senha = str(cfg.get("reabrir_senha", "") or "").strip()
     limpar_senha = int(cfg.get("limpar_reabrir_senha", 0) or 0) == 1
     senha_hash = hashlib.sha256(senha.encode("utf-8")).hexdigest() if senha else ""
-    cur.execute("SELECT id, COALESCE(reabrir_senha_hash,'') FROM configuracoes LIMIT 1")
+    cur.execute("SELECT id, COALESCE(reabrir_senha_hash,''), COALESCE(smtp_pass,''), COALESCE(sql_pass,'') FROM configuracoes LIMIT 1")
     r = cur.fetchone()
+    sql_server = str(cfg.get("sql_server", "") or "").strip()
+    sql_port = int(cfg.get("sql_port", 1433) or 1433)
+    sql_database = str(cfg.get("sql_database", "") or "").strip()
+    sql_user = str(cfg.get("sql_user", "") or "").strip()
+    sql_pass = str(cfg.get("sql_pass", "") or "")
+    sql_encrypt = int(cfg.get("sql_encrypt", 0) or 0)
+    sql_trust_cert = int(cfg.get("sql_trust_cert", 1) or 1)
+    sql_incluir_devolucoes = int(cfg.get("sql_incluir_devolucoes", 0) or 0)
     if r:
+        smtp_pass_atual = str(r[2] or "")
+        sql_pass_atual = str(r[3] or "")
+        smtp_pass_final = str(cfg.get("smtp_pass", "") or "").strip()
+        sql_pass_final = sql_pass.strip()
+        if (not smtp_pass_final) or _senha_mascarada(smtp_pass_final):
+            smtp_pass_final = smtp_pass_atual
+        if (not sql_pass_final) or _senha_mascarada(sql_pass_final):
+            sql_pass_final = sql_pass_atual
         hash_final = senha_hash if senha else ("" if limpar_senha else str(r[1] or ""))
         cur.execute(
-            "UPDATE configuracoes SET smtp_host=?, smtp_port=?, smtp_user=?, smtp_pass=?, smtp_from=?, reabrir_senha_hash=? WHERE id=?",
-            (cfg.get("smtp_host", ""), int(cfg.get("smtp_port", 587)), cfg.get("smtp_user", ""), cfg.get("smtp_pass", ""), cfg.get("smtp_from", ""), hash_final, r[0]),
-        )
+            """
+            UPDATE configuracoes
+                SET smtp_host=?, smtp_port=?, smtp_user=?, smtp_pass=?, smtp_from=?, reabrir_senha_hash=?,
+                    sql_server=?, sql_port=?, sql_database=?, sql_user=?, sql_pass=?, sql_encrypt=?, sql_trust_cert=?, sql_incluir_devolucoes=?
+                WHERE id=?
+                """,
+            (
+                cfg.get("smtp_host", ""),
+                int(cfg.get("smtp_port", 587)),
+                cfg.get("smtp_user", ""),
+                smtp_pass_final,
+                cfg.get("smtp_from", ""),
+                hash_final,
+                sql_server,
+                sql_port,
+                sql_database,
+                    sql_user,
+                    sql_pass_final,
+                    sql_encrypt,
+                    sql_trust_cert,
+                    sql_incluir_devolucoes,
+                    r[0],
+                ),
+            )
     else:
         cur.execute(
-            "INSERT INTO configuracoes(smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, reabrir_senha_hash) VALUES(?,?,?,?,?,?)",
-            (cfg.get("smtp_host", ""), int(cfg.get("smtp_port", 587)), cfg.get("smtp_user", ""), cfg.get("smtp_pass", ""), cfg.get("smtp_from", ""), senha_hash),
+            """
+            INSERT INTO configuracoes(
+              smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, reabrir_senha_hash,
+                sql_server, sql_port, sql_database, sql_user, sql_pass, sql_encrypt, sql_trust_cert, sql_incluir_devolucoes
+              ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+              """,
+            (
+                cfg.get("smtp_host", ""),
+                int(cfg.get("smtp_port", 587)),
+                cfg.get("smtp_user", ""),
+                cfg.get("smtp_pass", ""),
+                cfg.get("smtp_from", ""),
+                senha_hash,
+                sql_server,
+                sql_port,
+                sql_database,
+                sql_user,
+                sql_pass,
+                sql_encrypt,
+                sql_trust_cert,
+                sql_incluir_devolucoes,
+            ),
         )
     conn.commit()
     conn.close()
