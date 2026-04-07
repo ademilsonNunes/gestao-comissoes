@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: gestao-comissoes
     ports:
-      - "8512:5000"
+      - "8513:5000"
     environment:
       - APP_SECRET_KEY=${APP_SECRET_KEY:-change-me-in-prod}
       - DB_PATH=/data/comissoes.db
