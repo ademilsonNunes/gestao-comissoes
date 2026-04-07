@@ -74,5 +74,9 @@ def init_schema() -> None:
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comissoes_apuracao ON comissoes(apuracao_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_importacoes_apuracao ON importacoes(apuracao_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_aglutinacao_destino ON comissao_aglutinacao(codvend_destino)")
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS assinaturas (id INTEGER PRIMARY KEY, codigo TEXT UNIQUE NOT NULL, codvend TEXT NOT NULL, mes INTEGER NOT NULL, ano INTEGER NOT NULL, nome_rep TEXT, data_assinatura TEXT NOT NULL, pdf_path TEXT)"
+    )
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_assinaturas_codigo ON assinaturas(codigo)")
     conn.commit()
     conn.close()

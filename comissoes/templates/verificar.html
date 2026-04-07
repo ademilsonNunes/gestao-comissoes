@@ -1,0 +1,84 @@
+{% extends "_layout.html" %}
+{% set active = "verificar" %}
+{% set title = "Validar Assinatura" %}
+{% set subtitle = "Verifique a autenticidade de um documento assinado" %}
+
+{% block content %}
+<div style="max-width:600px; margin: 0 auto; padding: 32px 0;">
+
+  <div class="card" style="padding:28px 32px; margin-bottom:24px;">
+    <h2 style="font-size:1rem; font-weight:700; margin-bottom:16px; color:#1a1a2e;">Informe o código de verificação</h2>
+    <form method="get" action="/verificar" style="display:flex; gap:10px; align-items:flex-end;">
+      <div style="flex:1;">
+        <label style="font-size:.8rem; color:#6b7280; display:block; margin-bottom:6px;">Código do documento</label>
+        <input
+          type="text"
+          name="codigo"
+          value="{{ codigo or '' }}"
+          placeholder="Ex: A1B2C3D4E5F6G7H8"
+          style="width:100%; font-family:monospace; letter-spacing:2px; text-transform:uppercase; font-size:.95rem; padding:9px 12px; border:1px solid #d1d5db; border-radius:6px; outline:none;"
+          autocomplete="off"
+          maxlength="32"
+        >
+      </div>
+      <button type="submit" class="btn btn-primary" style="white-space:nowrap;">Verificar</button>
+    </form>
+  </div>
+
+  {% if codigo %}
+    {% if assinatura %}
+    <div class="card" style="padding:28px 32px; border-left:4px solid #10b981;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+        <span style="background:#d1fae5; color:#065f46; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">✓</span>
+        <div>
+          <div style="font-weight:700; color:#065f46; font-size:1rem;">Documento autêntico e verificado</div>
+          <div style="font-size:.8rem; color:#6b7280;">Este documento foi assinado digitalmente nesta plataforma.</div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #f0f0f0; padding-top:16px; display:grid; gap:12px;">
+        <div style="display:flex; justify-content:space-between; font-size:.875rem;">
+          <span style="color:#6b7280;">Representante</span>
+          <span style="font-weight:600; color:#1a1a2e;">{{ assinatura.nome_rep or assinatura.codvend }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:.875rem;">
+          <span style="color:#6b7280;">Código do representante</span>
+          <span style="font-weight:600; font-family:monospace; color:#1a1a2e;">{{ assinatura.codvend }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:.875rem;">
+          {% set meses = ['', 'Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'] %}
+          <span style="color:#6b7280;">Período de referência</span>
+          <span style="font-weight:600; color:#1a1a2e;">{{ meses[assinatura.mes] if assinatura.mes and assinatura.mes <= 12 else assinatura.mes }} / {{ assinatura.ano }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:.875rem;">
+          <span style="color:#6b7280;">Assinado em</span>
+          <span style="font-weight:600; color:#1a1a2e;">{{ assinatura.data_assinatura }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:.875rem;">
+          <span style="color:#6b7280;">Responsável</span>
+          <span style="font-weight:600; color:#1a1a2e;">Ademilson Nunes — Gestor de TI</span>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; text-align:center; font-family:monospace; font-size:1rem; letter-spacing:3px; color:#334155; margin-top:4px;">
+          {{ assinatura.codigo }}
+        </div>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="card" style="padding:28px 32px; border-left:4px solid #ef4444;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="background:#fee2e2; color:#991b1b; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">✗</span>
+        <div>
+          <div style="font-weight:700; color:#991b1b; font-size:1rem;">Código não encontrado</div>
+          <div style="font-size:.875rem; color:#6b7280; margin-top:4px;">
+            O código <strong>{{ codigo }}</strong> não corresponde a nenhum documento assinado nesta plataforma.<br>
+            Verifique se o código foi digitado corretamente.
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -1369,3 +1369,52 @@ def remover_aglutinacao(aid: int) -> None:
     cur.execute("DELETE FROM comissao_aglutinacao WHERE id=?", (aid,))
     conn.commit()
     conn.close()
+
+
+def registrar_assinatura(codigo: str, codvend: str, mes: int, ano: int, nome_rep: str, pdf_path: str) -> None:
+    from datetime import datetime
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT OR REPLACE INTO assinaturas(codigo, codvend, mes, ano, nome_rep, data_assinatura, pdf_path) VALUES(?,?,?,?,?,?,?)",
+        (codigo, codvend, mes, ano, nome_rep, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), pdf_path),
+    )
+    conn.commit()
+    conn.close()
+
+
+def buscar_assinatura_por_comissao(codvend: str, mes: int, ano: int) -> Optional[Dict[str, Any]]:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, codigo, codvend, mes, ano, nome_rep, data_assinatura, pdf_path FROM assinaturas WHERE codvend=? AND mes=? AND ano=? ORDER BY id DESC LIMIT 1",
+        (codvend, mes, ano),
+    )
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {"id": row[0], "codigo": row[1], "codvend": row[2], "mes": row[3], "ano": row[4], "nome_rep": row[5], "data_assinatura": row[6], "pdf_path": row[7]}
+
+
+def buscar_assinatura(codigo: str) -> Optional[Dict[str, Any]]:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, codigo, codvend, mes, ano, nome_rep, data_assinatura, pdf_path FROM assinaturas WHERE codigo=?",
+        (codigo,),
+    )
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "codigo": row[1],
+        "codvend": row[2],
+        "mes": row[3],
+        "ano": row[4],
+        "nome_rep": row[5],
+        "data_assinatura": row[6],
+        "pdf_path": row[7],
+    }

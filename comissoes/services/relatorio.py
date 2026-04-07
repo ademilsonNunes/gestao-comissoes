@@ -30,6 +30,50 @@ def _fmt_date(v: Any) -> str:
     return s[:10]
 
 
+def _find_rubrica_path() -> Path | None:
+    candidates = [
+        BASE_DIR / "comissoes" / "assets" / "Rubrica_completa.png",
+        BASE_DIR / "comissoes" / "static" / "Rubrica_completa.png",
+        BASE_DIR / "comissoes" / "static" / "assets" / "Rubrica_completa.png",
+        BASE_DIR / "artfatos" / "Rubrica_completa.png",
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
+    return None
+
+
+def _draw_assinatura(c: canvas.Canvas, page_width: float, codigo: str) -> None:
+    """Desenha bloco de assinatura suave no rodapé: rubrica acima do nome."""
+    rubrica_path = _find_rubrica_path()
+    x = 36
+
+    # Linha separadora leve
+    c.setStrokeColorRGB(0.75, 0.75, 0.75)
+    c.setLineWidth(0.5)
+    c.line(x, 96, page_width - x, 96)
+
+    # Rubrica acima do nome
+    if rubrica_path:
+        try:
+            img = ImageReader(str(rubrica_path))
+            c.drawImage(img, x, 42, width=160, height=60,
+                        preserveAspectRatio=True, mask="auto")
+        except Exception:
+            pass
+
+    c.setFont("Helvetica-Bold", 8)
+    c.setFillColorRGB(0.25, 0.25, 0.25)
+    c.drawString(x, 46, "Ademilson Nunes - Gestor de TI")
+
+    c.setFont("Helvetica", 7)
+    c.setFillColorRGB(0.50, 0.50, 0.50)
+    c.drawString(x, 35, f"Cód. verificação: {codigo}")
+    c.drawString(x, 25, f"Verifique em: /verificar/{codigo}")
+
+    c.setFillColorRGB(0, 0, 0)
+
+
 def _find_logo_path() -> Path | None:
     candidates = [
         BASE_DIR / "comissoes" / "static" / "Logo-Suprema1.png",
@@ -134,7 +178,7 @@ def _agrupar_lancamentos_por_pedido(lancamentos: List[Dict[str, Any]]) -> List[D
     return [grupos[k] for k in ordem]
 
 
-def gerar_pdf_representante(codvend: str, dados: Dict[str, Any]) -> str:
+def gerar_pdf_representante(codvend: str, dados: Dict[str, Any], codigo_assinatura: str | None = None) -> str:
     out_dir = ARTFATOS_DIR / "relatorios"
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{codvend}.pdf"
@@ -271,6 +315,9 @@ def gerar_pdf_representante(codvend: str, dados: Dict[str, Any]) -> str:
     y -= 18
     c.setFont("Helvetica-Bold", 10)
     c.drawString(36, y, "Favor enviar nota fiscal para darmos andamento ao pagamento.")
+
+    if codigo_assinatura:
+        _draw_assinatura(c, w, codigo_assinatura)
 
     c.showPage()
     c.save()

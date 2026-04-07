@@ -679,6 +679,7 @@ def enviar_email_por_comissao(cid: int):
 
 @app.get("/api/comissoes/<int:cid>/pdf")
 def gerar_pdf_por_comissao(cid: int):
+    import uuid as _uuid
     com = models.obter_comissao_por_id(cid)
     if not com:
         return jsonify({"error": "not_found"}), 404
@@ -686,7 +687,16 @@ def gerar_pdf_por_comissao(cid: int):
     rep_nome = rep.get("nome", "") if rep else ""
     lancamentos = models.obter_lancamentos_por_comissao(cid)
     dados = _montar_dados_comissao({"nome": rep_nome}, com, lancamentos)
-    path = gerar_pdf_representante(str(com.get("codvend", "")), dados)
+    assinado = request.args.get("assinado") == "1"
+    codigo_assinatura = None
+    if assinado:
+        assin = models.buscar_assinatura_por_comissao(
+            str(com.get("codvend", "")),
+            int(com.get("mes", 0) or 0),
+            int(com.get("ano", 0) or 0),
+        )
+        codigo_assinatura = assin["codigo"] if assin else None
+    path = gerar_pdf_representante(str(com.get("codvend", "")), dados, codigo_assinatura=codigo_assinatura)
     try:
         return send_file(path, mimetype="application/pdf")
     except Exception:
@@ -733,6 +743,42 @@ def consolidado_csv(mes: int, ano: int):
         return send_file(str(path), mimetype="text/csv")
     except Exception:
         return jsonify({"csv": str(path)})
+
+@app.post("/api/comissoes/<int:cid>/assinar")
+def assinar_comissao(cid: int):
+    import uuid
+    com = models.obter_comissao_por_id(cid)
+    if not com:
+        return jsonify({"error": "not_found"}), 404
+    rep = models.obter_representante_por_codvend(str(com.get("codvend", "")))
+    rep_nome = rep.get("nome", "") if rep else str(com.get("codvend", ""))
+    lancamentos = models.obter_lancamentos_por_comissao(cid)
+    dados = _montar_dados_comissao({"nome": rep_nome}, com, lancamentos)
+    codigo = str(uuid.uuid4()).replace("-", "")[:16].upper()
+    path = gerar_pdf_representante(str(com.get("codvend", "")), dados, codigo_assinatura=codigo)
+    models.registrar_assinatura(
+        codigo=codigo,
+        codvend=str(com.get("codvend", "")),
+        mes=int(com.get("mes", 0) or 0),
+        ano=int(com.get("ano", 0) or 0),
+        nome_rep=rep_nome,
+        pdf_path=path,
+    )
+    return jsonify({"codigo": codigo, "pdf": path})
+
+
+@app.get("/verificar")
+def verificar_form():
+    codigo = request.args.get("codigo", "").strip().upper()
+    assin = models.buscar_assinatura(codigo) if codigo else None
+    return render_template("verificar.html", assinatura=assin, codigo=codigo, autenticado=True)
+
+
+@app.get("/verificar/<codigo>")
+def verificar_assinatura(codigo: str):
+    assin = models.buscar_assinatura(codigo.upper())
+    return render_template("verificar.html", assinatura=assin, codigo=codigo.upper(), autenticado=True)
+
 
 @app.get("/api/relatorios/consolidado/<int:mes>/<int:ano>/pdf")
 def consolidado_pdf(mes: int, ano: int):

@@ -956,6 +956,7 @@ async function loadComissoes(mes, ano) {
           ${podeCancelar ? `<button class="btn btn-danger btn-sm" data-cancelar="${c.id}">Cancelar</button>` : ''}
           ${podeReabrir ? `<button class="btn btn-danger btn-sm" data-reabrir="${c.id}">Reabrir</button>` : ''}
           <button class="btn btn-ghost btn-sm" data-pdf-comissao="${c.id}" title="Gerar PDF">PDF</button>
+          <button class="btn btn-ghost btn-sm" data-assinar-comissao="${c.id}" title="Assinar e gerar PDF com código de verificação">Assinar</button>
           ${rid ? `<button class="btn btn-warn btn-sm" data-email-comissao="${c.id}" title="Enviar e-mail" ${podeEnviar ? '' : 'disabled'}>E-mail</button>` : ''}
         </div>
       </td>
@@ -1064,6 +1065,17 @@ async function loadComissoes(mes, ano) {
     window.open(`/api/comissoes/${cid}/pdf`, '_blank');
   }));
 
+  container.querySelectorAll('button[data-assinar-comissao]').forEach(b => b.addEventListener('click', async () => {
+    const cid = Number(b.dataset.assinarComissao || 0);
+    if (!cid) return;
+    b.disabled = true; b.innerHTML = '<span class="spinner spinner-dark"></span>';
+    try {
+      const r = await api(`/api/comissoes/${cid}/assinar`, { method: 'POST' });
+      window.open(`/api/comissoes/${cid}/pdf?assinado=1`, '_blank');
+      toast(`PDF assinado! Cód: ${r.codigo}`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { b.disabled = false; b.innerHTML = 'Assinar'; }
+  }));
 
   container.querySelectorAll('button[data-email-comissao]').forEach(b => b.addEventListener('click', async () => {
     const cid = Number(b.dataset.emailComissao || 0);
