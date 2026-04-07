@@ -1,6 +1,6 @@
 {% extends "_layout.html" %}
 {% set title = "Importação" %}
-{% set subtitle = "Carregar planilha de lançamentos e devoluções" %}
+{% set subtitle = "Carregar lançamentos por planilha ou consulta no banco" %}
 {% set active = "importacao" %}
 {% block content %}
 
@@ -27,7 +27,7 @@
         <label class="form-label">Mês (opcional)
           <span class="form-hint">Deixe vazio para detectar automaticamente</span>
         </label>
-        <input type="number" id="imp-mes" class="form-control" min="1" max="12" placeholder="Ex: 3">
+        <input type="number" id="imp-mes" class="form-control" min="1" max="12" placeholder="Ex: 2">
       </div>
       <div class="form-group">
         <label class="form-label">Ano (opcional)</label>
@@ -52,16 +52,54 @@
   </div>
 </div>
 
+<div class="card">
+  <div class="card-header">
+    <div class="card-header-left">
+      <h2>Importação via Banco (Query)</h2>
+      <div class="card-header-sub">
+        Data de emissão: início do mês de referência menos 6 meses. Data de baixa: mês da apuração.
+      </div>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="form-grid cols-3 mb-16">
+      <div class="form-group">
+        <label class="form-label">Mês de apuração (obrigatório)</label>
+        <input type="number" id="qry-mes" class="form-control" min="1" max="12" placeholder="Ex: 2">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ano de apuração (obrigatório)</label>
+        <input type="number" id="qry-ano" class="form-control" min="2020" max="2100" placeholder="Ex: 2026">
+      </div>
+      <div class="form-group">
+        <label class="form-label">&nbsp;</label>
+        <div class="flex">
+          <button type="button" id="btn-import-query" class="btn btn-primary">
+            <span>🧮</span> Importar via query
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group mb-16">
+      <label class="form-label">Connection string SQL (opcional)</label>
+      <input type="text" id="qry-conn" class="form-control" placeholder="Driver={ODBC Driver 18 for SQL Server};Server=...;Database=...;UID=...;PWD=...;TrustServerCertificate=yes;">
+      <span class="form-hint">Se não informar, o backend usa os dados salvos em Configurações → Conexão SQL.</span>
+    </div>
+    <div id="imp-query-result-area"></div>
+  </div>
+</div>
+
 <div class="card" id="pendencias-card">
   <div class="card-header">
     <div class="card-header-left">
       <h2>Pendências de Cadastro</h2>
-      <div class="card-header-sub">CODVEND encontrados no arquivo sem representante cadastrado</div>
+      <div class="card-header-sub">CODVEND encontrados na importação sem representante cadastrado</div>
     </div>
     <button class="btn btn-ghost btn-sm" id="btn-ver-pendencias">Verificar pendências</button>
   </div>
   <div class="card-body" id="pendencias-body">
-    <p class="text-muted text-sm">Clique em "Verificar pendências" para checar após a importação.</p>
+    <p class="text-muted text-sm">Clique em "Verificar pendências" após a importação.</p>
   </div>
 </div>
 

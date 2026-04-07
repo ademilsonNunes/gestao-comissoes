@@ -1,6 +1,6 @@
 {% extends "_layout.html" %}
-{% set title = "Configurações SMTP" %}
-{% set subtitle = "Configure o servidor de e-mail para envio dos relatórios" %}
+{% set title = "Configurações" %}
+{% set subtitle = "SMTP, segurança e conexão SQL da importação" %}
 {% set active = "configuracoes" %}
 {% block content %}
 
@@ -13,7 +13,7 @@
       <span class="alert-icon">💡</span>
       <div class="alert-body">
         <div class="alert-title">Gmail / Google Workspace</div>
-        <div>Host: <code>smtp.gmail.com</code> · Porta: <code>587</code> · Use uma <a href="https://myaccount.google.com/apppasswords" target="_blank">senha de app</a> se tiver 2FA ativado.</div>
+        <div>Host: <code>smtp.gmail.com</code> · Porta: <code>587</code> · Use senha de app se tiver 2FA.</div>
       </div>
     </div>
 
@@ -33,12 +33,59 @@
         </div>
         <div class="form-group">
           <label class="form-label">Senha</label>
-          <input type="password" name="smtp_pass" class="form-control" placeholder="••••••••">
+          <input type="password" name="smtp_pass" class="form-control" placeholder="********" autocomplete="new-password" data-lpignore="true">
+          <div class="form-hint">Deixe em branco para manter a senha SMTP atual.</div>
         </div>
         <div class="form-group form-col-full">
           <label class="form-label">E-mail remetente <span class="req">*</span></label>
-          <input type="email" name="smtp_from" class="form-control" required placeholder="noreply@empresa.com">
+          <input type="email" name="smtp_from" class="form-control" required placeholder="financeiro@empresa.com">
         </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="card-header" style="padding-left:0;padding-right:0;border-bottom:none">
+        <h2>Conexão SQL Server (Importação via Query)</h2>
+      </div>
+      <div class="form-grid mb-16">
+        <div class="form-group">
+          <label class="form-label">Servidor SQL</label>
+          <input type="text" name="sql_server" class="form-control" placeholder="10.0.132.3">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Porta SQL</label>
+          <input type="number" name="sql_port" class="form-control" value="1433">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Banco SQL</label>
+          <input type="text" name="sql_database" class="form-control" placeholder="Protheus_Producao">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Usuário SQL</label>
+          <input type="text" name="sql_user" class="form-control" placeholder="sa">
+        </div>
+        <div class="form-group form-col-full">
+          <label class="form-label">Senha SQL</label>
+          <input type="password" name="sql_pass" class="form-control" placeholder="********" autocomplete="new-password" data-lpignore="true">
+          <div class="form-hint">Deixe em branco para manter a senha SQL atual.</div>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;gap:8px;align-items:center;margin-top:8px">
+            <input type="checkbox" name="sql_encrypt" value="1">
+            Encrypt (ODBC)
+          </label>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;gap:8px;align-items:center;margin-top:8px">
+            <input type="checkbox" name="sql_trust_cert" value="1" checked>
+            TrustServerCertificate
+          </label>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="form-grid mb-16">
         <div class="form-group">
           <label class="form-label">Senha para reabrir comissão enviada</label>
           <input type="password" name="reabrir_senha" class="form-control" placeholder="Defina uma senha de confirmação">
@@ -56,9 +103,11 @@
           </label>
         </div>
       </div>
+
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">💾 Salvar configurações</button>
-        <button type="button" id="btn-test-smtp" class="btn btn-ghost">🔌 Testar conexão</button>
+        <button type="button" id="btn-test-smtp" class="btn btn-ghost">🔌 Testar SMTP</button>
+        <button type="button" id="btn-test-sql" class="btn btn-ghost">🧪 Testar SQL</button>
       </div>
     </form>
 

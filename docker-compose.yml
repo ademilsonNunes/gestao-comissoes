@@ -1,0 +1,16 @@
+services:
+  comissoes:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gestao-comissoes
+    ports:
+      - "8512:5000"
+    environment:
+      - APP_SECRET_KEY=${APP_SECRET_KEY:-change-me-in-prod}
+      - DB_PATH=/data/comissoes.db
+      - COMISSOES_SQL_CONN=${COMISSOES_SQL_CONN:-}
+    volumes:
+      - ./data:/data
+      - ./artfatos:/app/artfatos
+    restart: unless-stopped
